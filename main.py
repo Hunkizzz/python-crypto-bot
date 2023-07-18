@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.types import Message, ReplyKeyboardRemove
 from flask import Flask, request
 from keycloak import KeycloakOpenID
-
+import requests
 import config
 import kb
 import requests_file
@@ -25,7 +25,7 @@ router = Router()
 keycloak_openid = KeycloakOpenID(server_url=config.keycloak_url,
                                  client_id=config.client_id,
                                  realm_name=config.realm,
-                                 client_secret_key="7Ok9URLmgNKbC1CK8zQPmghAuBDMlVBh")
+                                 client_secret_key=config.client_secret)
 
 
 @router.callback_query(F.data == "get_crypto_currency")
@@ -77,10 +77,30 @@ async def callback_handler():
     # Process the code, state, and session_state parameters
     # ...
     # Exchange the authorization code for an access token
-    token = keycloak_openid.token(code, redirect_uri=f"{config.app_url}/auth")
+    # token = keycloak_openid.token(code=code)
+
+    # Step 3: Exchange the authorization code for an access token
+    token_endpoint = f"{config.keycloak_url}/realms/{config.realm}/protocol/openid-connect/token"
+    payload = {
+        "grant_type": "authorization_code",
+        "client_id": config.client_id,
+        "client_secret": config.client_secret,
+        "code": code,
+        "redirect_uri": f"{config.app_url}/auth"
+    }
+    response = requests.post(token_endpoint, data=payload)
+
+    if response.status_code == 200:
+        token_data = response.json()
+        access_token = token_data.get("access_token")
+        return access_token
+    else:
+        print(f"Token retrieval failed with status code {response.status_code}")
+        return None
+
 
     # Extract the JWT token from the token response
-    jwt_token = token.get("access_token")
+    # jwt_token = token.get("access_token")
 
     return "Callback processed successfully"
     # Get the access token using the authorization code

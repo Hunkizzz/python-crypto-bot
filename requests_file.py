@@ -1,8 +1,9 @@
-import requests
-from typing import Dict
-from typing import Union
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+from typing import Dict
+
+import requests
+
 
 async def get_crypto_currency(name: str) -> Dict[str, str]:
     url = f"http://localhost:8095/coinmarketcap/api/crypto/{name}"
@@ -12,6 +13,8 @@ async def get_crypto_currency(name: str) -> Dict[str, str]:
         return data
     else:
         raise Exception("Error occurred while fetching data from the API")
+
+
 async def format_value_data(dto: Dict[str, str]) -> str:
     formatted_str = f"Symbol: {dto['symbol']}\n"
     formatted_str += f"Price: {format_decimal(dto['price'])}\n"
@@ -31,6 +34,7 @@ async def format_value_data(dto: Dict[str, str]) -> str:
 
     return formatted_str
 
+
 def format_decimal(value: str) -> str:
     if value is not None:
         try:
@@ -40,6 +44,7 @@ def format_decimal(value: str) -> str:
             return "N/A"
     else:
         return "N/A"
+
 
 def format_datetime(value: str) -> str:
     if value is not None:

@@ -4,14 +4,14 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import Message, ReplyKeyboardRemove
-from keycloak import KeycloakOpenID
 
 import config
 import kb
 import requests_file
 import text
+from keycloak_config import keycloak_openid
 from states import Gen
-from main import app
+from tokens import tokens
 
 router = Router()
 
@@ -33,7 +33,7 @@ async def generate_text(msg: Message, state: FSMContext):
             await cancel_handler(mesg, state)
             return
         else:
-            res = await requests_file.get_crypto_currency(prompt)
+            res = await requests_file.get_crypto_currency(tokens.get(str(msg.from_user.id)), prompt)
             result = await requests_file.format_value_data(res)
     except Exception as e:
         return await mesg.answer(text.gen_error, reply_markup=kb.cancel_kb)
@@ -41,15 +41,11 @@ async def generate_text(msg: Message, state: FSMContext):
 
 
 async def send_auth_link(message: Message):
-    # Create KeycloakOpenID instance
-    keycloak_openid = KeycloakOpenID(server_url=config.keycloak_url,
-                                     client_id=config.client_id,
-                                     realm_name=config.realm)
-
     # Generate the authorization URL
     auth_url = keycloak_openid.auth_url(
         redirect_uri=f"{config.app_url}/auth",
         scope="openid",
+        state=message.from_user.id
     )
 
     # Create an InlineKeyboardMarkup with the authorization URL button
@@ -59,22 +55,6 @@ async def send_auth_link(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     await message.answer("Please authenticate to proceed.", reply_markup=keyboard)
-
-
-@router.message(F.Text(contains=f"{config.app_url}/auth"))
-@app.route("/")
-async def callback_handler(message: Message, state: FSMContext):
-    # Extract the authorization code from the message
-    code = message.text.split("=")[1]
-
-    # Get the access token using the authorization code
-    # access_token = await get_token(code)
-
-    # Store the access token (JWT) in the state
-    # async with state.proxy() as data:
-    #     data["jwt"] = access_token
-
-    await message.answer("Authorization successful. You can now perform actions.")
 
 
 @router.message(Command("cancel"))

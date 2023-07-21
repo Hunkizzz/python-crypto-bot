@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+import requests
 from aiogram import Bot, Dispatcher
 from aiogram import F, Router
 from aiogram import flags
@@ -11,7 +12,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.types import Message, ReplyKeyboardRemove
 from flask import Flask, request
 from keycloak import KeycloakOpenID
-import requests
+
 import config
 import kb
 import requests_file
@@ -20,6 +21,8 @@ from states import Gen
 
 app = Flask(__name__)
 router = Router()
+
+tokens = {}
 
 # Create KeycloakOpenID instance
 keycloak_openid = KeycloakOpenID(server_url=config.keycloak_url,
@@ -45,7 +48,7 @@ async def generate_text(msg: Message, state: FSMContext):
             await cancel_handler(mesg, state)
             return
         else:
-            res = await requests_file.get_crypto_currency(prompt)
+            res = await requests_file.get_crypto_currency(tokens.get(str(msg.from_user.id)), prompt)
             result = await requests_file.format_value_data(res)
     except Exception as e:
         return await mesg.answer(text.gen_error, reply_markup=kb.cancel_kb)
@@ -57,6 +60,7 @@ async def send_auth_link(message: Message):
     auth_url = keycloak_openid.auth_url(
         redirect_uri=f"{config.app_url}/auth",
         scope="openid",
+        state=message.from_user.id
     )
 
     # Create an InlineKeyboardMarkup with the authorization URL button
@@ -89,15 +93,14 @@ async def callback_handler():
         "redirect_uri": f"{config.app_url}/auth"
     }
     response = requests.post(token_endpoint, data=payload)
-
     if response.status_code == 200:
         token_data = response.json()
         access_token = token_data.get("access_token")
-        return access_token
+        tokens[state] = access_token
+        return f"You have been successfully authorized!\n Please close this tab and return to the bot!\n Have a nice day"
     else:
         print(f"Token retrieval failed with status code {response.status_code}")
         return None
-
 
     # Extract the JWT token from the token response
     # jwt_token = token.get("access_token")

@@ -5,9 +5,14 @@ from typing import Dict
 import requests
 
 
-async def get_crypto_currency(name: str) -> Dict[str, str]:
+async def get_crypto_currency(access_token: str, name: str) -> Dict[str, str]:
     url = f"http://localhost:8095/coinmarketcap/api/crypto/{name}"
-    response = requests.get(url)
+    # Include the access token as a bearer token in the Authorization header
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    response = requests.get(url, headers=headers)
     if response.status_code == 200:
         data = response.json()
         return data
